@@ -4,6 +4,8 @@ import postRoutes from './routes/post';
 const app = express();
 const PORT = 3000;
 
+app.use(express.json());
+
 app.use('/posts', postRoutes);
 
 app.get('/', (req, res) => {
