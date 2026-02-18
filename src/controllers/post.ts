@@ -38,11 +38,17 @@ export const getPostById = (req: Request, res: Response) => {
 
 export const getSearchPosts = (req: Request, res: Response) => {
     const query = req.query.q as string;
+
     const filteredPosts = posts.filter(post => 
         post.titulo.toLowerCase().includes(query.toLowerCase()) || 
         post.conteudo.toLowerCase().includes(query.toLowerCase())
     );
-    res.json(filteredPosts);
+
+    if (filteredPosts.length === 0) {
+        return res.status(404).json({ message: "Nenhum post encontrado para este termo." });
+    }
+
+    return res.json(filteredPosts);
 };
 
 export const createPost = (req: Request, res: Response) => {

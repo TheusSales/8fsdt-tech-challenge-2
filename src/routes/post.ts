@@ -7,9 +7,9 @@ const router = Router();
 // "pendurado" no caminho "/posts" no servidor principal
 router.get("/", getPosts);
 
-router.get("/:id", getPostById);
-
 router.get("/search", getSearchPosts);
+
+router.get("/:id", getPostById);
 
 router.post("/",createPost);
 
