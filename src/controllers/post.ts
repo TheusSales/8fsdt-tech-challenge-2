@@ -1,97 +1,146 @@
 import { Post } from "../models/post";
+import { pool } from '../database'; // Ajuste o caminho conforme a sua pasta
 import { Request, Response } from "express";
 
-const posts: Post[] = [
-  {
-    idPost: 1,  
-    titulo: "Primeiro Post",
-    conteudo: "Este é o conteúdo do primeiro post.",
-    idAutor: 1,
-    dataCriacao: new Date("2024-01-01")
-  },
-  {
-    idPost: 2,
-    titulo: "Segundo Post",
-    conteudo: "Este é o conteúdo do segundo post.",
-    idAutor: 2,
-    dataCriacao: new Date("2024-01-02")
-  }
-];
 
 // Esta função é um exemplo de como lidar com uma rota que retorna todos os posts.
-export const getPosts = (req: Request, res: Response) => {
-    return res.json(posts);
+export const getPosts = async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query('SELECT * FROM posts');
+        return res.json(result.rows);
+    } catch (error) {
+        console.error("Erro ao buscar posts:", error);
+        return res.status(500).json({ message: "Erro interno no servidor ao buscar posts." });
+    }
 };
 
 // Esta função é um exemplo de como lidar com uma rota que recebe um parâmetro de ID para buscar um post específico.
-export const getPostById = (req: Request, res: Response) => {
-    // Para lidar com o caso em que o ID pode ser passado como string ou array (dependendo de como a rota é definida), fazemos essa verificação.
-    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    // Convertendo o ID para número, já que os IDs dos posts são do tipo number.
-    const id = parseInt(idParam || "0");
-    const post = posts.find(p => p.idPost === id);
-    if (post) {
-        return res.json(post);
+export const getPostById = async (req: Request, res: Response) => {
+    try {
+        const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const id = parseInt(idParam || "0");
+        const result = await pool.query('SELECT * FROM posts WHERE idPost = $1', [id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Post não encontrado" });
+        }
+        return res.json(result.rows[0]);
+    } catch (error) {
+        console.error("Erro ao buscar post:", error);
+        return res.status(500).json({ message: "Erro interno no servidor ao buscar post." });
     }
-    return res.status(404).json({ message: "Post não encontrado" });
 };
 
-export const getSearchPosts = (req: Request, res: Response) => {
-    const query = req.query.q as string;
+export const getSearchPosts = async (req: Request, res: Response) => {
+    try {
+        const query = req.query.q as string;
+        if (!query) {
+            return res.status(400).json({ message: "Por favor, informe um termo de busca válido." });
+        }
+        const result = await pool.query(
+            'SELECT * FROM posts WHERE LOWER(titulo) LIKE LOWER($1) OR LOWER(conteudo) LIKE LOWER($1)',
+            [`%${query}%`]
+        );
 
-    const filteredPosts = posts.filter(post => 
-        post.titulo.toLowerCase().includes(query.toLowerCase()) || 
-        post.conteudo.toLowerCase().includes(query.toLowerCase())
-    );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Nenhum post encontrado para este termo." });
+        }
 
-    if (filteredPosts.length === 0) {
-        return res.status(404).json({ message: "Nenhum post encontrado para este termo." });
+        return res.json(result.rows);
+    } catch (error) {
+        console.error("Erro ao buscar posts:", error);
+        return res.status(500).json({ message: "Erro interno no servidor ao buscar posts." });
     }
-
-    return res.json(filteredPosts);
 };
 
-export const createPost = (req: Request, res: Response) => {
-    //Extraindo os dados do corpo da requisição para criar um novo post.
-    const titulo = req.body.titulo;
-    const conteudo = req.body.conteudo;
-    const idAutor = req.body.idAutor;
-    const idPost = posts.length + 1; // Gerando um ID simples baseado no tamanho do array, apenas para fins de demonstração.
-    const dataCriacao = new Date(); // Definindo a data de criação como a data atual.
+export const createPost = async (req: Request, res: Response) => {
+    try {
+        // Pegamos os dados que vêm do Insomnia
+        const { titulo, conteudo, idAutor } = req.body;
 
-    const newPost: Post = {
-        idPost,
-        titulo,
-        conteudo,
-        idAutor,
-        dataCriacao
-    };
+        // Validação básica
+        if (!titulo || !conteudo || !idAutor) {
+            return res.status(400).json({ message: "Título, conteúdo e idAutor são obrigatórios." });
+        }
 
-    posts.push(newPost);
+        // O comando SQL. Usamos $1, $2, $3 por segurança (evita SQL Injection)
+        // O RETURNING * faz o banco devolver o post que acabou de ser criado (com o ID gerado)
+        const query = `
+            INSERT INTO posts (titulo, conteudo, idAutor) 
+            VALUES ($1, $2, $3) 
+            RETURNING *;
+        `;
+        
+        // Passamos os valores na mesma ordem dos $
+        const values = [titulo, conteudo, idAutor];
 
-    //montando a resposta com os dados recebidos, apenas para fins de demonstração. Em um cenário real, você provavelmente iria salvar esses dados em um banco de dados e retornar o post criado com um ID gerado.
-    res.status(201).json({ ...newPost, message: "Post criado com sucesso!" });
-}
+        // Executamos a query
+        const result = await pool.query(query, values);
 
-export const updatePost = (req: Request, res: Response) => {
-    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const id = parseInt(idParam || "0");
-    const postIndex = posts.findIndex(p => p.idPost === id);
-    if (postIndex === -1) {
-        return res.status(404).json({ message: "Post não encontrado" });
+        // Retornamos o post fresquinho direto do banco!
+        res.status(201).json({ 
+            message: "Post criado com sucesso no Banco de Dados! 🚀", 
+            post: result.rows[0] 
+        });
+
+    } catch (error) {
+        console.error("Erro ao criar post:", error);
+        res.status(500).json({ message: "Erro interno no servidor ao criar o post." });
     }
-    const updatedPost = { ...posts[postIndex], ...req.body };
-    posts[postIndex] = updatedPost;
-    res.json(updatedPost);
-}
+};
 
-export const deletePost = (req: Request, res: Response) => {
-    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const id = parseInt(idParam || "0");
-    const postIndex = posts.findIndex(p => p.idPost === id);
-    if (postIndex === -1) {
-        return res.status(404).json({ message: "Post não encontrado" });
+export const updatePost = async (req: Request, res: Response) => {
+    try {
+        const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const id = parseInt(idParam || "0");
+
+        
+        
+
+        // Atualiza o post
+        const { titulo, conteudo, idAutor } = req.body;
+        const query = `
+            UPDATE posts
+            SET titulo = $1, conteudo = $2, idAutor = $3
+            WHERE idPost = $4
+            RETURNING *;
+        `;
+        const values = [titulo, conteudo, idAutor, id];
+        const result = await pool.query(query, values);
+
+        // Se rowCount for 0, o ID não existia
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Post não encontrado" });
+        }
+
+        return res.json({
+            message: "Post atualizado com sucesso!",
+            post: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("Erro ao atualizar post:", error);
+        res.status(500).json({ message: "Erro interno no servidor ao atualizar o post." });
     }
-    posts.splice(postIndex, 1);
-    res.json({ message: "Post deletado com sucesso!" });
-}
+};
+
+// Exemplo otimizado para o DELETE (o mesmo princípio vale para o UPDATE)
+export const deletePost = async (req: Request, res: Response) => {
+    try {
+        const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const id = parseInt(idParam || "0");
+
+        // O comando DELETE direto
+        const result = await pool.query('DELETE FROM posts WHERE idPost = $1', [id]);
+        
+        // Se rowCount for 0, o ID não existia
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Post não encontrado para exclusão." });
+        }
+
+        return res.json({ message: "Post deletado com sucesso!" });
+
+    } catch (error) {
+        console.error("Erro ao deletar post:", error);
+        res.status(500).json({ message: "Erro interno no servidor ao deletar o post." });
+    }
+};
