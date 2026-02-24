@@ -54,37 +54,30 @@ export const getSearchPosts = async (req: Request, res: Response) => {
 
 export const createPost = async (req: Request, res: Response) => {
     try {
-        // Pegamos os dados que vêm do Insomnia
-        const { titulo, conteudo, idAutor } = req.body;
+        // Agora recebemos 'autor' (string) direto do Insomnia
+        const { titulo, conteudo, autor } = req.body;
 
-        // Validação básica
-        if (!titulo || !conteudo || !idAutor) {
-            return res.status(400).json({ message: "Título, conteúdo e idAutor são obrigatórios." });
+        if (!titulo || !conteudo || !autor) {
+            return res.status(400).json({ message: "Título, conteúdo e autor são obrigatórios." });
         }
 
-        // O comando SQL. Usamos $1, $2, $3 por segurança (evita SQL Injection)
-        // O RETURNING * faz o banco devolver o post que acabou de ser criado (com o ID gerado)
         const query = `
-            INSERT INTO posts (titulo, conteudo, idAutor) 
+            INSERT INTO posts (titulo, conteudo, autor) 
             VALUES ($1, $2, $3) 
             RETURNING *;
         `;
         
-        // Passamos os valores na mesma ordem dos $
-        const values = [titulo, conteudo, idAutor];
-
-        // Executamos a query
+        const values = [titulo, conteudo, autor];
         const result = await pool.query(query, values);
 
-        // Retornamos o post fresquinho direto do banco!
-        res.status(201).json({ 
-            message: "Post criado com sucesso no Banco de Dados! 🚀", 
+        return res.status(201).json({ 
+            message: "Post criado com sucesso! 🚀", 
             post: result.rows[0] 
         });
 
     } catch (error) {
         console.error("Erro ao criar post:", error);
-        res.status(500).json({ message: "Erro interno no servidor ao criar o post." });
+        return res.status(500).json({ message: "Erro interno no servidor ao criar o post." });
     }
 };
 
@@ -93,21 +86,18 @@ export const updatePost = async (req: Request, res: Response) => {
         const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const id = parseInt(idParam || "0");
 
+        // Agora atualizamos recebendo 'autor'
+        const { titulo, conteudo, autor } = req.body;
         
-        
-
-        // Atualiza o post
-        const { titulo, conteudo, idAutor } = req.body;
         const query = `
             UPDATE posts
-            SET titulo = $1, conteudo = $2, idAutor = $3
+            SET titulo = $1, conteudo = $2, autor = $3
             WHERE idPost = $4
             RETURNING *;
         `;
-        const values = [titulo, conteudo, idAutor, id];
+        const values = [titulo, conteudo, autor, id];
         const result = await pool.query(query, values);
 
-        // Se rowCount for 0, o ID não existia
         if (result.rowCount === 0) {
             return res.status(404).json({ message: "Post não encontrado" });
         }
@@ -119,7 +109,7 @@ export const updatePost = async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error("Erro ao atualizar post:", error);
-        res.status(500).json({ message: "Erro interno no servidor ao atualizar o post." });
+        return res.status(500).json({ message: "Erro interno no servidor ao atualizar o post." });
     }
 };
 

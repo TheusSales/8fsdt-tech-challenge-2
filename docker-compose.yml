@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: postgres_blog
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER} # Use o usuário definido no .env
+      POSTGRES_PASSWORD: ${DB_PASSWORD} # Use a senha definida no .env
+      POSTGRES_DB: ${DB_DATABASE} # Use o nome do banco de dados definido no .env
+    ports:
+      - "5432:5432" # Mapeia a porta 5432 do container para a 5432 do seu Windows
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Garante que os dados não sumam se o container reiniciar
+
+volumes:
+  pgdata:
