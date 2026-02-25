@@ -9,11 +9,13 @@ export const pool = new Pool({
   port: Number(process.env.DB_PORT), // Convertendo string para número
 });
 
-// Teste de conexão simples
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Erro ao conectar no banco!', err);
-  } else {
-    console.log('Banco de dados conectado com sucesso!');
-  }
-});
+// Teste de conexão simples - só executa se não estiver em ambiente de teste
+if (process.env.NODE_ENV !== 'test') {
+  pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+      console.error('Erro ao conectar no banco!', err);
+    } else {
+      console.log('Banco de dados conectado com sucesso!');
+    }
+  });
+}
