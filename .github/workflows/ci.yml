@@ -1,0 +1,32 @@
+name: CI - Testes Automatizados
+
+# Define QUANDO o robô vai rodar (em todo push para a branch main ou master)
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    # Define ONDE o robô vai rodar (em um servidor Linux do próprio GitHub)
+    runs-on: ubuntu-latest
+
+    steps:
+    # Passo 1: O GitHub clona o seu repositório para o servidor deles
+    - name: Fazer o Checkout do código
+      uses: actions/checkout@v4
+
+    # Passo 2: Instala o Node.js (usando a versão 18, igual ao seu Dockerfile)
+    - name: Configurar o Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    # Passo 3: Roda o npm install para baixar o Jest, Express, etc.
+    - name: Instalar dependências
+      run: npm install
+
+    # Passo 4: Roda o comando de teste que você já configurou!
+    - name: Executar os testes unitários
+      run: npm test
