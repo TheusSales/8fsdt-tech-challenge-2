@@ -20,7 +20,7 @@ A aplicação foi construída visando performance, escalabilidade e boas prátic
 ### Passo a Passo
 
 1. Clone o repositório:
-`git clone URL_DO_SEU_REPOSITORIO_AQUI`
+`git clone https://github.com/TheusSales/8fsdt-tech-challenge-2`
 
 2. Acesse a pasta do projeto e instale as dependências:
 `npm install`
@@ -65,3 +65,4 @@ O projeto conta com testes automatizados para garantir a estabilidade das opera�
 
 
 O reposiro possui um fluxo de Continuous Integration (CI) configurado. A cada push para a branch principal, o GitHub Actions executa automaticamente a suíte de testes, garantindo a qualidade do código entregue.
+
