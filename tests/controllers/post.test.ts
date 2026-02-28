@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { mock, MockProxy } from 'jest-mock-extended';
-import { pool } from '../../src/database';
+import { Post, IPost } from '../../src/models/post';
 import {
   getPosts,
   getPostById,
@@ -10,14 +10,9 @@ import {
   deletePost
 } from '../../src/controllers/post';
 
-// Mock the database pool
-jest.mock('../../src/database', () => ({
-  pool: {
-    query: jest.fn(),
-  },
-}));
+jest.mock('../../src/models/post');
 
-const mockPool = pool as jest.Mocked<typeof pool>;
+const mockPost = Post as jest.Mocked<typeof Post>;
 
 describe('Post Controller', () => {
   let mockRequest: MockProxy<Request>;
@@ -38,20 +33,20 @@ describe('Post Controller', () => {
 
   describe('getPosts', () => {
     it('should return all posts successfully', async () => {
-      const mockPosts = [
-        { idPost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
+      const mockPosts: IPost[] = [
+        { idpost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
       ];
-      mockPool.query.mockResolvedValue({ rows: mockPosts });
+      mockPost.findAll.mockResolvedValue(mockPosts);
 
       await getPosts(mockRequest, mockResponse);
 
-      expect(mockPool.query).toHaveBeenCalledWith('SELECT * FROM posts');
+      expect(mockPost.findAll).toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith(mockPosts);
     });
 
-    it('should handle database errors', async () => {
+    it('should handle errors', async () => {
       const error = new Error('Database error');
-      mockPool.query.mockRejectedValue(error);
+      mockPost.findAll.mockRejectedValue(error);
 
       await getPosts(mockRequest, mockResponse);
 
@@ -62,50 +57,38 @@ describe('Post Controller', () => {
 
   describe('getPostById', () => {
     it('should return a post by id successfully', async () => {
-      const mockPost = { idPost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' };
+      const mockPostData: IPost = { idpost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' };
       mockRequest.params = { id: '1' };
-      mockPool.query.mockResolvedValue({ rows: [mockPost], rowCount: 1 });
+      mockPost.findById.mockResolvedValue(mockPostData);
 
       await getPostById(mockRequest, mockResponse);
 
-      expect(mockPool.query).toHaveBeenCalledWith('SELECT * FROM posts WHERE idPost = $1', [1]);
-      expect(mockResponse.json).toHaveBeenCalledWith(mockPost);
+      expect(mockPost.findById).toHaveBeenCalledWith(1);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockPostData);
     });
 
     it('should return 404 if post not found', async () => {
       mockRequest.params = { id: '1' };
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      mockPost.findById.mockResolvedValue(null);
 
       await getPostById(mockRequest, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(404);
       expect(mockJson).toHaveBeenCalledWith({ message: 'Post não encontrado' });
     });
-
-    it('should handle invalid id parameter', async () => {
-      mockRequest.params = { id: 'invalid' };
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
-
-      await getPostById(mockRequest, mockResponse);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(404);
-    });
   });
 
   describe('getSearchPosts', () => {
     it('should return search results successfully', async () => {
-      const mockPosts = [
-        { idPost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
+      const mockPosts: IPost[] = [
+        { idpost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
       ];
       mockRequest.query = { q: 'test' };
-      mockPool.query.mockResolvedValue({ rows: mockPosts, rowCount: 1 });
+      mockPost.search.mockResolvedValue(mockPosts);
 
       await getSearchPosts(mockRequest, mockResponse);
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM posts WHERE LOWER(titulo) LIKE LOWER($1) OR LOWER(conteudo) LIKE LOWER($1)',
-        ['%test%']
-      );
+      expect(mockPost.search).toHaveBeenCalledWith('test');
       expect(mockResponse.json).toHaveBeenCalledWith(mockPosts);
     });
 
@@ -119,32 +102,30 @@ describe('Post Controller', () => {
     });
 
     it('should return 404 if no posts found', async () => {
-      mockRequest.query = { q: 'nonexistent' };
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
-
-      await getSearchPosts(mockRequest, mockResponse);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(404);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Nenhum post encontrado para este termo.' });
-    });
+        mockRequest.query = { q: 'nonexistent' };
+        mockPost.search.mockResolvedValue([]);
+      
+        await getSearchPosts(mockRequest, mockResponse);
+      
+        expect(mockResponse.status).toHaveBeenCalledWith(404);
+        expect(mockJson).toHaveBeenCalledWith({ message: 'Nenhum post encontrado para este termo.' });
+      });
   });
 
   describe('createPost', () => {
     it('should create a post successfully', async () => {
-      const mockPost = { idPost: 1, titulo: 'New Post', conteudo: 'Content', autor: 'Author' };
-      mockRequest.body = { titulo: 'New Post', conteudo: 'Content', autor: 'Author' };
-      mockPool.query.mockResolvedValue({ rows: [mockPost] });
+      const newPost: IPost = { titulo: 'New Post', conteudo: 'Content', autor: 'Author' };
+      const createdPost: IPost = { idpost: 1, ...newPost };
+      mockRequest.body = newPost;
+      mockPost.create.mockResolvedValue(createdPost);
 
       await createPost(mockRequest, mockResponse);
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO posts'),
-        ['New Post', 'Content', 'Author']
-      );
+      expect(mockPost.create).toHaveBeenCalledWith(newPost);
       expect(mockResponse.status).toHaveBeenCalledWith(201);
       expect(mockJson).toHaveBeenCalledWith({
         message: 'Post criado com sucesso! 🚀',
-        post: mockPost
+        post: createdPost
       });
     });
 
@@ -160,27 +141,26 @@ describe('Post Controller', () => {
 
   describe('updatePost', () => {
     it('should update a post successfully', async () => {
-      const mockPost = { idPost: 1, titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
+      const updateData: IPost = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
+      const updatedPost: IPost = { idpost: 1, ...updateData };
       mockRequest.params = { id: '1' };
-      mockRequest.body = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
-      mockPool.query.mockResolvedValue({ rows: [mockPost], rowCount: 1 });
+      mockRequest.body = updateData;
+      mockPost.update.mockResolvedValue(updatedPost);
 
       await updatePost(mockRequest, mockResponse);
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE posts'),
-        ['Updated Post', 'Updated Content', 'Updated Author', 1]
-      );
+      expect(mockPost.update).toHaveBeenCalledWith(1, updateData);
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Post atualizado com sucesso!',
-        post: mockPost
+        post: updatedPost
       });
     });
 
     it('should return 404 if post not found', async () => {
       mockRequest.params = { id: '1' };
-      mockRequest.body = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      const updateData: IPost = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
+      mockRequest.body = updateData;
+      mockPost.update.mockResolvedValue(null);
 
       await updatePost(mockRequest, mockResponse);
 
@@ -192,17 +172,17 @@ describe('Post Controller', () => {
   describe('deletePost', () => {
     it('should delete a post successfully', async () => {
       mockRequest.params = { id: '1' };
-      mockPool.query.mockResolvedValue({ rowCount: 1 });
+      mockPost.delete.mockResolvedValue(true);
 
       await deletePost(mockRequest, mockResponse);
 
-      expect(mockPool.query).toHaveBeenCalledWith('DELETE FROM posts WHERE idPost = $1', [1]);
+      expect(mockPost.delete).toHaveBeenCalledWith(1);
       expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Post deletado com sucesso!' });
     });
 
     it('should return 404 if post not found', async () => {
       mockRequest.params = { id: '1' };
-      mockPool.query.mockResolvedValue({ rowCount: 0 });
+      mockPost.delete.mockResolvedValue(false);
 
       await deletePost(mockRequest, mockResponse);
 

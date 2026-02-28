@@ -1,17 +1,11 @@
 import request from 'supertest';
 import express from 'express';
 import postRoutes from '../../src/routes/post';
+import { Post, IPost } from '../../src/models/post';
 
-// Mock the database pool
-jest.mock('../../src/database', () => ({
-  pool: {
-    query: jest.fn(),
-  },
-}));
+jest.mock('../../src/models/post');
 
-import { pool } from '../../src/database';
-
-const mockPool = pool as jest.Mocked<typeof pool>;
+const mockPost = Post as jest.Mocked<typeof Post>;
 
 const app = express();
 app.use(express.json());
@@ -24,20 +18,20 @@ describe('Post Routes', () => {
 
   describe('GET /posts', () => {
     it('should return all posts', async () => {
-      const mockPosts = [
-        { idPost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
+      const mockPosts: IPost[] = [
+        { idpost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
       ];
-      mockPool.query.mockResolvedValue({ rows: mockPosts });
+      mockPost.findAll.mockResolvedValue(mockPosts);
 
       const response = await request(app).get('/posts');
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual(mockPosts);
-      expect(mockPool.query).toHaveBeenCalledWith('SELECT * FROM posts');
+      expect(mockPost.findAll).toHaveBeenCalled();
     });
 
     it('should handle database errors', async () => {
-      mockPool.query.mockRejectedValue(new Error('Database error'));
+      mockPost.findAll.mockRejectedValue(new Error('Database error'));
 
       const response = await request(app).get('/posts');
 
@@ -48,10 +42,10 @@ describe('Post Routes', () => {
 
   describe('GET /posts/search', () => {
     it('should return search results', async () => {
-      const mockPosts = [
-        { idPost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
+      const mockPosts: IPost[] = [
+        { idpost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' }
       ];
-      mockPool.query.mockResolvedValue({ rows: mockPosts, rowCount: 1 });
+      mockPost.search.mockResolvedValue(mockPosts);
 
       const response = await request(app).get('/posts/search?q=test');
 
@@ -69,17 +63,17 @@ describe('Post Routes', () => {
 
   describe('GET /posts/:id', () => {
     it('should return a post by id', async () => {
-      const mockPost = { idPost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' };
-      mockPool.query.mockResolvedValue({ rows: [mockPost], rowCount: 1 });
+      const mockPostData: IPost = { idpost: 1, titulo: 'Test Post', conteudo: 'Content', autor: 'Author' };
+      mockPost.findById.mockResolvedValue(mockPostData);
 
       const response = await request(app).get('/posts/1');
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockPost);
+      expect(response.body).toEqual(mockPostData);
     });
 
     it('should return 404 if post not found', async () => {
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      mockPost.findById.mockResolvedValue(null);
 
       const response = await request(app).get('/posts/1');
 
@@ -90,9 +84,9 @@ describe('Post Routes', () => {
 
   describe('POST /posts', () => {
     it('should create a new post', async () => {
-      const newPost = { titulo: 'New Post', conteudo: 'Content', autor: 'Author' };
-      const createdPost = { idPost: 1, ...newPost };
-      mockPool.query.mockResolvedValue({ rows: [createdPost] });
+      const newPost: IPost = { titulo: 'New Post', conteudo: 'Content', autor: 'Author' };
+      const createdPost: IPost = { idpost: 1, ...newPost };
+      mockPost.create.mockResolvedValue(createdPost);
 
       const response = await request(app)
         .post('/posts')
@@ -115,9 +109,9 @@ describe('Post Routes', () => {
 
   describe('PUT /posts/:id', () => {
     it('should update a post', async () => {
-      const updateData = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
-      const updatedPost = { idPost: 1, ...updateData };
-      mockPool.query.mockResolvedValue({ rows: [updatedPost], rowCount: 1 });
+      const updateData: IPost = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
+      const updatedPost: IPost = { idpost: 1, ...updateData };
+      mockPost.update.mockResolvedValue(updatedPost);
 
       const response = await request(app)
         .put('/posts/1')
@@ -129,7 +123,7 @@ describe('Post Routes', () => {
     });
 
     it('should return 404 if post not found', async () => {
-      mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      mockPost.update.mockResolvedValue(null);
 
       const response = await request(app)
         .put('/posts/1')
@@ -142,7 +136,7 @@ describe('Post Routes', () => {
 
   describe('DELETE /posts/:id', () => {
     it('should delete a post', async () => {
-      mockPool.query.mockResolvedValue({ rowCount: 1 });
+      mockPost.delete.mockResolvedValue(true);
 
       const response = await request(app).delete('/posts/1');
 
@@ -151,7 +145,7 @@ describe('Post Routes', () => {
     });
 
     it('should return 404 if post not found', async () => {
-      mockPool.query.mockResolvedValue({ rowCount: 0 });
+      mockPost.delete.mockResolvedValue(false);
 
       const response = await request(app).delete('/posts/1');
 
