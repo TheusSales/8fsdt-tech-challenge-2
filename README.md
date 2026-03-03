@@ -22,7 +22,7 @@ A arquitetura foi projetada para ser modular, escalável e de fácil manutençã
 ### Passo a Passo
 
 1. Clone o repositório:
-`git clone URL_DO_SEU_REPOSITORIO_AQUI`
+`git clone https://github.com/TheusSales/8fsdt-tech-challenge-2`
 
 2. Acesse a pasta do projeto e instale as dependências:
 `npm install`
@@ -75,3 +75,4 @@ Durante o desenvolvimento desta Fase 2, enfrentamos desafios técnicos valiosos 
 3. **Resolução de Conflitos de Módulos e Importações:** Outro obstáculo superado envolveu a configuração do TypeScript (`tsconfig.json`). Enfrentamos erros de compilação relacionados à resolução de módulos e importações de arquivos. Quando corrigimos o comportamento para a aplicação rodar perfeitamente no servidor via `ts-node-dev`, o problema ressurgiu ao tentar executar os testes unitários, já que o Jest utiliza um ambiente de execução próprio. A solução exigiu um aprofundamento na configuração do `ts-jest` e no alinhamento das opções de interoperabilidade de módulos, garantindo que a suíte de testes e a API compreendessem a mesma sintaxe de importação.
 
 4. **Implementação de Testes Unitários e CI/CD:** Atingir a meta de cobertura de testes exigiu o entendimento de como isolar o banco de dados das funções do *Controller* utilizando Mocks no Jest. Superada essa etapa, o desafio final foi escrever o arquivo `.yml` do GitHub Actions, compreendendo os passos (steps) necessários para fazer a máquina do GitHub replicar perfeitamente o nosso ambiente local de desenvolvimento. Ver o pipeline rodando e aprovando os testes automaticamente foi a maior recompensa desta fase.
+
