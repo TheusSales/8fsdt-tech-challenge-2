@@ -9,7 +9,8 @@
     "test:coverage": "jest --coverage",
     "dev": "ts-node-dev --respawn --transpile-only --clear src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "ts-node src/scripts/seed.ts"
   },
   "keywords": [],
   "author": "",
