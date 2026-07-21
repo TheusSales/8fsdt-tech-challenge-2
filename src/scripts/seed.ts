@@ -52,9 +52,11 @@ const seed = async () => {
   // posts não tem coluna única, então o guard é pelo título.
   for (const post of POSTS) {
     await pool.query(
+      // Os casts são necessários: sem eles o Postgres infere text no SELECT e
+      // varchar no WHERE, e recusa o parâmetro compartilhado.
       `INSERT INTO posts (titulo, conteudo, autor)
-       SELECT $1, $2, $3
-       WHERE NOT EXISTS (SELECT 1 FROM posts WHERE titulo = $1)`,
+       SELECT $1::varchar, $2::text, $3::varchar
+       WHERE NOT EXISTS (SELECT 1 FROM posts WHERE titulo = $1::varchar)`,
       [post.titulo, post.conteudo, post.autor]
     );
   }

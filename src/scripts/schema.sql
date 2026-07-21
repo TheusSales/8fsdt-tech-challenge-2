@@ -1,12 +1,13 @@
 -- Schema completo do blog (idempotente).
 -- Uso: psql -h localhost -U postgres -d blog_tech -f src/scripts/schema.sql
 
+-- Espelha a tabela que já existe no banco de desenvolvimento.
 CREATE TABLE IF NOT EXISTS posts (
   idPost SERIAL PRIMARY KEY,
-  titulo VARCHAR(200) NOT NULL,
+  titulo VARCHAR(150) NOT NULL,
   conteudo TEXT NOT NULL,
-  autor VARCHAR(120) NOT NULL,
-  dataCriacao TIMESTAMP DEFAULT NOW()
+  autor VARCHAR(100) NOT NULL,
+  dataCriacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS professors (
