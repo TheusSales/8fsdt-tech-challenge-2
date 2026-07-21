@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import postRoutes from './routes/post';
 import authRoutes from './routes/auth';
+import professorRoutes from './routes/professor';
 
 const app = express();
 const PORT = 3000;
@@ -11,6 +12,7 @@ app.use(express.json());
 
 app.use('/posts', postRoutes);
 app.use('/auth', authRoutes);
+app.use('/professors', professorRoutes);
 
 app.get('/', (req, res) => {
   res.send('🚀 Servidor Tech Challenge rodando com sucesso!');

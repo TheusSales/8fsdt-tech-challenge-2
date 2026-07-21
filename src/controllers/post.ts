@@ -1,10 +1,26 @@
 import { Post, IPost } from "../models/post";
 import { Request, Response } from "express";
+import { parsePagination } from "../utils/pagination";
 
 export const getPosts = async (req: Request, res: Response) => {
     try {
         const posts = await Post.findAll();
         return res.json(posts);
+    } catch (error) {
+        console.error("Erro ao buscar posts:", error);
+        return res.status(500).json({ message: "Erro interno no servidor ao buscar posts." });
+    }
+};
+
+// Listagem paginada para a tela administrativa do app mobile.
+export const getAdminPosts = async (req: Request, res: Response) => {
+    try {
+        const { page, pageSize, limit, offset } = parsePagination(req.query);
+        const [items, total] = await Promise.all([
+            Post.findPaginated(limit, offset),
+            Post.count()
+        ]);
+        return res.json({ items, page, pageSize, total });
     } catch (error) {
         console.error("Erro ao buscar posts:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao buscar posts." });

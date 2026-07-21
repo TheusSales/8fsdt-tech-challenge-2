@@ -14,6 +14,19 @@ export class Post {
     return result.rows;
   }
 
+  static async findPaginated(limit: number, offset: number): Promise<IPost[]> {
+    const result = await pool.query(
+      'SELECT * FROM posts ORDER BY dataCriacao DESC, idPost DESC LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
+    return result.rows;
+  }
+
+  static async count(): Promise<number> {
+    const result = await pool.query('SELECT COUNT(*) AS total FROM posts');
+    return Number(result.rows[0].total);
+  }
+
   static async findById(id: number): Promise<IPost | null> {
     const result = await pool.query('SELECT * FROM posts WHERE idPost = $1', [id]);
     if (result.rowCount === 0) {
