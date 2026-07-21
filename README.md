@@ -2,6 +2,8 @@
 
 Esta é uma API RESTful para gerenciamento de postagens de blog, desenvolvida como requisito da Fase 2 do Tech Challenge.
 
+> **Extensão da Fase 4:** esta API foi ampliada para atender o app mobile em React Native ([TheusSales/tech-challenge-4](https://github.com/TheusSales/tech-challenge-4)). Foram adicionados autenticação JWT de professores, CRUD de professores e de alunos, paginação e proteção das rotas de escrita de posts. A leitura de posts permanece pública, para que alunos naveguem sem login.
+
 ## Arquitetura do Sistema
 
 A arquitetura foi projetada para ser modular, escalável e de fácil manutenção, seguindo princípios de separação de responsabilidades (Controllers, Routes e Database):
@@ -27,10 +29,23 @@ A arquitetura foi projetada para ser modular, escalável e de fácil manutençã
 2. Acesse a pasta do projeto e instale as dependências:
 `npm install`
 
-3. Suba o banco de dados PostgreSQL isolado via Docker:
+3. Crie o arquivo `.env` a partir do modelo e ajuste os valores:
+`cp .env.example .env`
+
+   > O `JWT_SECRET` é obrigatório: sem ele o login de professores falha ao assinar o token.
+
+4. Suba o banco de dados PostgreSQL isolado via Docker:
 `docker-compose up -d`
 
-4. Inicie o servidor Node.js em modo de desenvolvimento:
+5. Crie as tabelas (idempotente, pode rodar novamente sem perder dados):
+`docker exec -i postgres_blog psql -U postgres -d blog_tech < src/scripts/schema.sql`
+
+6. Popule os dados iniciais (também idempotente):
+`npm run seed`
+
+   Isso cria o professor padrão **`admin@fiap.com` / `admin123`**, dois alunos e dois posts de exemplo.
+
+7. Inicie o servidor Node.js em modo de desenvolvimento:
 `npm run dev`
 
 A API estará rodando e pronta para receber requisições em: `http://localhost:3000`
@@ -41,24 +56,65 @@ A API estará rodando e pronta para receber requisições em: `http://localhost:
 
 Abaixo estão os endpoints disponíveis. Todas as respostas e requisições utilizam o formato JSON.
 
+Rotas marcadas com 🔒 exigem o header `Authorization: Bearer <token>`, obtido em `POST /auth/login`. Sem o header elas respondem **401**.
+
+### Autenticação (Auth)
+
+Adicionado na Fase 4 para suportar o app mobile. Apenas professores autenticam; alunos consomem os posts anonimamente.
+
+- **POST /auth/login**: Autentica um professor e devolve o token JWT (validade de 8h).
+  - Body esperado: `{ "email": "string", "password": "string" }`
+  - Resposta: `{ "token": "...", "professor": { "id", "name", "email" } }`
+  - Credenciais inválidas retornam **401** com a mesma mensagem para e-mail inexistente e senha errada, para não revelar quais e-mails estão cadastrados.
+- 🔒 **GET /auth/me**: Retorna o professor dono do token. Útil para validar na inicialização do app se o token guardado ainda vale.
+
 ### Postagens (Posts)
 
-- **GET /posts**: Lista todas as postagens criadas na plataforma.
-- **GET /posts/:id**: Retorna o conteúdo completo e os detalhes de uma postagem específica através do seu ID.
-- **POST /posts**: Cria uma nova postagem.
+- **GET /posts**: Lista todas as postagens criadas na plataforma. *(público)*
+- **GET /posts/:id**: Retorna o conteúdo completo e os detalhes de uma postagem específica através do seu ID. *(público)*
+- **GET /posts/search?q=termo**: Realiza a busca de posts por palavras-chave. Retorna uma lista de postagens que contêm o termo pesquisado no título ou no conteúdo de forma *case-insensitive*. *(público)*
+- 🔒 **GET /posts/admin?page=1&pageSize=20**: Listagem paginada para a tela administrativa, ordenada da postagem mais recente para a mais antiga.
+  - Resposta: `{ "items": [...], "page": 1, "pageSize": 20, "total": 42 }`
+- 🔒 **POST /posts**: Cria uma nova postagem.
   - Body esperado: `{ "titulo": "string", "conteudo": "string", "autor": "string" }`
-- **PUT /posts/:id**: Edita uma postagem existente identificada pelo ID.
+- 🔒 **PUT /posts/:id**: Edita uma postagem existente identificada pelo ID.
   - Body esperado: `{ "titulo": "string", "conteudo": "string", "autor": "string" }`
-- **DELETE /posts/:id**: Exclui permanentemente uma postagem específica através do ID.
-- **GET /posts/search?q=termo**: Realiza a busca de posts por palavras-chave. Retorna uma lista de postagens que contêm o termo pesquisado no título ou no conteúdo de forma *case-insensitive*.
+- 🔒 **DELETE /posts/:id**: Exclui permanentemente uma postagem específica através do ID.
+
+### Professores (Professors)
+
+Todas as rotas exigem autenticação. A senha nunca é devolvida em nenhuma resposta.
+
+- 🔒 **GET /professors?page=1&pageSize=20**: Lista paginada, no mesmo envelope de `/posts/admin`.
+- 🔒 **GET /professors/:id**: Detalhe de um professor.
+- 🔒 **POST /professors**: Cadastra um professor (é assim que se cria um novo login; não existe rota pública de registro).
+  - Body esperado: `{ "name": "string", "email": "string", "password": "string" }`
+  - E-mail já cadastrado retorna **409**.
+- 🔒 **PUT /professors/:id**: Edita um professor.
+  - Body esperado: `{ "name": "string", "email": "string", "password": "string (opcional)" }`
+  - Omitir `password` mantém a senha atual.
+- 🔒 **DELETE /professors/:id**: Exclui um professor. Tentar excluir a si mesmo retorna **409**, para não deixar o sistema sem acesso.
+
+### Alunos (Students)
+
+Mesma estrutura dos professores, porém sem senha — alunos não fazem login, são apenas cadastros administrados pelos professores.
+
+- 🔒 **GET /students?page=1&pageSize=20**: Lista paginada.
+- 🔒 **GET /students/:id**: Detalhe de um aluno.
+- 🔒 **POST /students**: Cadastra um aluno.
+  - Body esperado: `{ "name": "string", "email": "string", "ra": "string (opcional)" }`
+- 🔒 **PUT /students/:id**: Edita um aluno.
+- 🔒 **DELETE /students/:id**: Exclui um aluno.
 
 ---
 
 ##  Cobertura de Testes e CI/CD
 
-O projeto conta com mais de 20% de cobertura de testes unitários focados nas operações críticas do sistema (criação, edição e exclusão de postagens). Para rodar os testes localmente, execute o comando na raiz do projeto:
+O projeto conta com **77 testes unitários** cobrindo as operações críticas do sistema: CRUD de postagens, autenticação (login, `/auth/me` e o middleware `requireAuth`), CRUD de professores e de alunos, além da paginação e do bloqueio das rotas protegidas. Para rodar os testes localmente, execute o comando na raiz do projeto:
 
 `npm test`
+
+Os testes mockam a camada de models, então não exigem banco de dados — rodam da mesma forma no CI. Em contrapartida, eles **não** validam o SQL de verdade; mudanças em queries devem ser conferidas com o Postgres rodando.
 
 **Automação:** O repositório possui um workflow de **Continuous Integration (CI)** configurado via GitHub Actions. A cada *push* realizado para a branch principal, um servidor remoto clona o código, instala as dependências e executa automaticamente a suíte de testes (`npm test`), validando a integridade da aplicação antes de qualquer deploy.
 
