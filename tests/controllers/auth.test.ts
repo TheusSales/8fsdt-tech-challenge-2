@@ -149,45 +149,72 @@ describe('requireAuth middleware', () => {
     mockResponse.json = mockJson;
     mockResponse.status = mockStatus;
     mockNext = jest.fn();
+
+    jest.clearAllMocks();
   });
 
-  it('should reject requests without a token', () => {
+  it('should reject requests without a token', async () => {
     mockRequest.headers = {};
 
-    requireAuth(mockRequest, mockResponse, mockNext);
+    await requireAuth(mockRequest, mockResponse, mockNext);
 
     expect(mockStatus).toHaveBeenCalledWith(401);
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it('should reject a malformed authorization header', () => {
+  it('should reject a malformed authorization header', async () => {
     mockRequest.headers = { authorization: 'Basic abc123' };
 
-    requireAuth(mockRequest, mockResponse, mockNext);
+    await requireAuth(mockRequest, mockResponse, mockNext);
 
     expect(mockStatus).toHaveBeenCalledWith(401);
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it('should reject a token signed with another secret', () => {
+  it('should reject a token signed with another secret', async () => {
     mockRequest.headers = { authorization: 'Bearer nao.e.um.token.valido' };
 
-    requireAuth(mockRequest, mockResponse, mockNext);
+    await requireAuth(mockRequest, mockResponse, mockNext);
 
     expect(mockStatus).toHaveBeenCalledWith(401);
     expect(mockJson).toHaveBeenCalledWith({ message: 'Token inválido ou expirado.' });
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it('should accept a valid token and inject req.professor', () => {
+  it('should accept a valid token and inject req.professor', async () => {
     const token = signToken({ id: 7, email: 'prof@fiap.com' });
     mockRequest.headers = { authorization: `Bearer ${token}` };
+    mockProfessor.findById.mockResolvedValue({ id: 7, name: 'Prof', email: 'prof@fiap.com' });
 
-    requireAuth(mockRequest, mockResponse, mockNext);
+    await requireAuth(mockRequest, mockResponse, mockNext);
 
     expect(mockNext).toHaveBeenCalled();
     expect(mockRequest.professor).toEqual(
       expect.objectContaining({ id: 7, email: 'prof@fiap.com' })
     );
+  });
+
+  // Um token assinado continua válido por 8h. Se o professor for excluído
+  // nesse meio-tempo, ele seguia criando posts e apagando outros professores
+  // com um crachá cancelado — a assinatura sozinha não prova que a conta
+  // ainda existe.
+  it('should reject a valid token whose professor was deleted', async () => {
+    const token = signToken({ id: 7, email: 'prof@fiap.com' });
+    mockRequest.headers = { authorization: `Bearer ${token}` };
+    mockProfessor.findById.mockResolvedValue(null);
+
+    await requireAuth(mockRequest, mockResponse, mockNext);
+
+    expect(mockStatus).toHaveBeenCalledWith(401);
+    expect(mockJson).toHaveBeenCalledWith({ message: 'Sessão encerrada. Faça login novamente.' });
+    expect(mockNext).not.toHaveBeenCalled();
+  });
+
+  it('should not hit the database when the token is invalid', async () => {
+    mockRequest.headers = { authorization: 'Bearer nao.e.um.token' };
+
+    await requireAuth(mockRequest, mockResponse, mockNext);
+
+    expect(mockProfessor.findById).not.toHaveBeenCalled();
   });
 });

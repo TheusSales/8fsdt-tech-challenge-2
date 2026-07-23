@@ -58,6 +58,10 @@ Abaixo estão os endpoints disponíveis. Todas as respostas e requisições util
 
 Rotas marcadas com 🔒 exigem o header `Authorization: Bearer <token>`, obtido em `POST /auth/login`. Sem o header elas respondem **401**.
 
+O `requireAuth` valida a assinatura do token **e confere se o professor ainda existe**. Sem essa segunda checagem, um professor excluído continuaria com acesso total até o token expirar (8h) — assinatura válida não prova que a conta ainda existe. O custo é uma consulta por requisição autenticada, que é o preço de revogar acesso na hora sem manter uma lista de tokens revogados.
+
+**Não há hierarquia de papéis:** todo professor é administrador e pode gerenciar posts, alunos e outros professores. O único bloqueio é a auto-exclusão (409), que garante que sempre reste ao menos um professor com acesso.
+
 ### Autenticação (Auth)
 
 Adicionado na Fase 4 para suportar o app mobile. Apenas professores autenticam; alunos consomem os posts anonimamente.
@@ -111,7 +115,7 @@ Mesma estrutura dos professores, porém sem senha — alunos não fazem login, s
 
 ##  Cobertura de Testes e CI/CD
 
-O projeto conta com **80 testes unitários** cobrindo as operações críticas do sistema: CRUD de postagens, autenticação (login, `/auth/me` e o middleware `requireAuth`), CRUD de professores e de alunos, além da paginação e do bloqueio das rotas protegidas. Para rodar os testes localmente, execute o comando na raiz do projeto:
+O projeto conta com **82 testes unitários** cobrindo as operações críticas do sistema: CRUD de postagens, autenticação (login, `/auth/me` e o middleware `requireAuth`), CRUD de professores e de alunos, além da paginação e do bloqueio das rotas protegidas. Para rodar os testes localmente, execute o comando na raiz do projeto:
 
 `npm test`
 

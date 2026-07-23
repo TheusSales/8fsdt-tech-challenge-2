@@ -2,13 +2,16 @@ import request from 'supertest';
 import express from 'express';
 import postRoutes from '../../src/routes/post';
 import { Post, IPost } from '../../src/models/post';
+import { Professor } from '../../src/models/professor';
 import { signToken } from '../../src/utils/jwt';
 
 jest.mock('../../src/models/post');
+jest.mock('../../src/models/professor');
 
 process.env.JWT_SECRET = 'segredo-de-teste';
 
 const mockPost = Post as jest.Mocked<typeof Post>;
+const mockProfessor = Professor as jest.Mocked<typeof Professor>;
 
 // Token real: as rotas protegidas passam pelo requireAuth de verdade.
 const AUTH_HEADER = `Bearer ${signToken({ id: 1, email: 'admin@fiap.com' })}`;
@@ -20,6 +23,13 @@ app.use('/posts', postRoutes);
 describe('Post Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // O requireAuth confere se o professor do token ainda existe, então as
+    // rotas protegidas precisam de um professor válido no banco mockado.
+    mockProfessor.findById.mockResolvedValue({
+      id: 1,
+      name: 'Administrador FIAP',
+      email: 'admin@fiap.com'
+    });
   });
 
   describe('GET /posts', () => {
