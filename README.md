@@ -77,6 +77,7 @@ Adicionado na Fase 4 para suportar o app mobile. Apenas professores autenticam; 
   - Resposta: `{ "items": [...], "page": 1, "pageSize": 20, "total": 42 }`
 - 🔒 **POST /posts**: Cria uma nova postagem.
   - Body esperado: `{ "titulo": "string", "conteudo": "string", "autor": "string" }`
+  - `titulo` aceita até 150 caracteres e `autor` até 100 — o limite das colunas. Exceder retorna **400** (e não 500, como acontecia antes de o código `22001` do Postgres ser tratado). `conteudo` é `TEXT`, sem limite.
 - 🔒 **PUT /posts/:id**: Edita uma postagem existente identificada pelo ID.
   - Body esperado: `{ "titulo": "string", "conteudo": "string", "autor": "string" }`
 - 🔒 **DELETE /posts/:id**: Exclui permanentemente uma postagem específica através do ID.
@@ -110,7 +111,7 @@ Mesma estrutura dos professores, porém sem senha — alunos não fazem login, s
 
 ##  Cobertura de Testes e CI/CD
 
-O projeto conta com **77 testes unitários** cobrindo as operações críticas do sistema: CRUD de postagens, autenticação (login, `/auth/me` e o middleware `requireAuth`), CRUD de professores e de alunos, além da paginação e do bloqueio das rotas protegidas. Para rodar os testes localmente, execute o comando na raiz do projeto:
+O projeto conta com **80 testes unitários** cobrindo as operações críticas do sistema: CRUD de postagens, autenticação (login, `/auth/me` e o middleware `requireAuth`), CRUD de professores e de alunos, além da paginação e do bloqueio das rotas protegidas. Para rodar os testes localmente, execute o comando na raiz do projeto:
 
 `npm test`
 
