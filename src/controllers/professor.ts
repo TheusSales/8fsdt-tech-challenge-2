@@ -3,12 +3,10 @@ import { Professor } from "../models/professor";
 import { hashPassword } from "../utils/password";
 import { parsePagination } from "../utils/pagination";
 
-// Código do Postgres para violação de UNIQUE (email duplicado).
-const UNIQUE_VIOLATION = "23505";
+import { isUniqueViolation, isValueTooLong } from "../utils/dbErrors";
 
-const isUniqueViolation = (error: unknown): boolean => {
-    return typeof error === "object" && error !== null && (error as { code?: string }).code === UNIQUE_VIOLATION;
-};
+// Limites das colunas em src/scripts/schema.sql.
+const TAMANHO_EXCEDIDO = "Nome deve ter até 120 caracteres e e-mail até 160.";
 
 export const getProfessors = async (req: Request, res: Response) => {
     try {
@@ -59,6 +57,9 @@ export const createProfessor = async (req: Request, res: Response) => {
         if (isUniqueViolation(error)) {
             return res.status(409).json({ message: "Já existe um professor com este e-mail." });
         }
+        if (isValueTooLong(error)) {
+            return res.status(400).json({ message: TAMANHO_EXCEDIDO });
+        }
         console.error("Erro ao criar professor:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao criar o professor." });
     }
@@ -89,6 +90,9 @@ export const updateProfessor = async (req: Request, res: Response) => {
     } catch (error) {
         if (isUniqueViolation(error)) {
             return res.status(409).json({ message: "Já existe um professor com este e-mail." });
+        }
+        if (isValueTooLong(error)) {
+            return res.status(400).json({ message: TAMANHO_EXCEDIDO });
         }
         console.error("Erro ao atualizar professor:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao atualizar o professor." });

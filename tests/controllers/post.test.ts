@@ -14,6 +14,12 @@ jest.mock('../../src/models/post');
 
 const mockPost = Post as jest.Mocked<typeof Post>;
 
+// 22001 é o código do Postgres para texto maior que o VARCHAR da coluna:
+// titulo é varchar(150) e autor varchar(100). Antes isso virava 500, o que
+// fazia o app oferecer "tentar de novo" para algo que só o usuário resolve.
+const valueTooLong = () =>
+  Object.assign(new Error('value too long for type character varying(150)'), { code: '22001' });
+
 describe('Post Controller', () => {
   let mockRequest: MockProxy<Request>;
   let mockResponse: MockProxy<Response>;
@@ -137,9 +143,43 @@ describe('Post Controller', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith({ message: 'Título, conteúdo e autor são obrigatórios.' });
     });
+
+    it('should return 400 when a field exceeds the column length', async () => {
+      mockRequest.body = { titulo: 'x'.repeat(200), conteudo: 'Content', autor: 'Author' };
+      mockPost.create.mockRejectedValue(valueTooLong());
+
+      await createPost(mockRequest, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        message: 'Título deve ter até 150 caracteres e autor até 100.'
+      });
+    });
+
+    it('should still return 500 for unexpected errors', async () => {
+      mockRequest.body = { titulo: 'New Post', conteudo: 'Content', autor: 'Author' };
+      mockPost.create.mockRejectedValue(new Error('conexão perdida'));
+
+      await createPost(mockRequest, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+    });
   });
 
   describe('updatePost', () => {
+    it('should return 400 when a field exceeds the column length', async () => {
+      mockRequest.params = { id: '1' };
+      mockRequest.body = { titulo: 'x'.repeat(200), conteudo: 'Content', autor: 'Author' };
+      mockPost.update.mockRejectedValue(valueTooLong());
+
+      await updatePost(mockRequest, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        message: 'Título deve ter até 150 caracteres e autor até 100.'
+      });
+    });
+
     it('should update a post successfully', async () => {
       const updateData: IPost = { titulo: 'Updated Post', conteudo: 'Updated Content', autor: 'Updated Author' };
       const updatedPost: IPost = { idpost: 1, ...updateData };

@@ -1,12 +1,10 @@
 import { Request, Response } from "express";
 import { Student } from "../models/student";
 import { parsePagination } from "../utils/pagination";
+import { isUniqueViolation, isValueTooLong } from "../utils/dbErrors";
 
-const UNIQUE_VIOLATION = "23505";
-
-const isUniqueViolation = (error: unknown): boolean => {
-    return typeof error === "object" && error !== null && (error as { code?: string }).code === UNIQUE_VIOLATION;
-};
+// Limites das colunas em src/scripts/schema.sql.
+const TAMANHO_EXCEDIDO = "Nome deve ter até 120 caracteres, e-mail até 160 e RA até 40.";
 
 export const getStudents = async (req: Request, res: Response) => {
     try {
@@ -56,6 +54,9 @@ export const createStudent = async (req: Request, res: Response) => {
         if (isUniqueViolation(error)) {
             return res.status(409).json({ message: "Já existe um aluno com este e-mail." });
         }
+        if (isValueTooLong(error)) {
+            return res.status(400).json({ message: TAMANHO_EXCEDIDO });
+        }
         console.error("Erro ao criar aluno:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao criar o aluno." });
     }
@@ -84,6 +85,9 @@ export const updateStudent = async (req: Request, res: Response) => {
     } catch (error) {
         if (isUniqueViolation(error)) {
             return res.status(409).json({ message: "Já existe um aluno com este e-mail." });
+        }
+        if (isValueTooLong(error)) {
+            return res.status(400).json({ message: TAMANHO_EXCEDIDO });
         }
         console.error("Erro ao atualizar aluno:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao atualizar o aluno." });

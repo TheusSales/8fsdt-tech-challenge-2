@@ -1,6 +1,10 @@
 import { Post, IPost } from "../models/post";
 import { Request, Response } from "express";
 import { parsePagination } from "../utils/pagination";
+import { isValueTooLong } from "../utils/dbErrors";
+
+// Limites das colunas em src/scripts/schema.sql. `conteudo` é TEXT, sem limite.
+const TAMANHO_EXCEDIDO = "Título deve ter até 150 caracteres e autor até 100.";
 
 export const getPosts = async (req: Request, res: Response) => {
     try {
@@ -75,6 +79,9 @@ export const createPost = async (req: Request, res: Response) => {
             post: createdPost 
         });
     } catch (error) {
+        if (isValueTooLong(error)) {
+            return res.status(400).json({ message: TAMANHO_EXCEDIDO });
+        }
         console.error("Erro ao criar post:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao criar o post." });
     }
@@ -98,6 +105,9 @@ export const updatePost = async (req: Request, res: Response) => {
             post: updatedPost
         });
     } catch (error) {
+        if (isValueTooLong(error)) {
+            return res.status(400).json({ message: TAMANHO_EXCEDIDO });
+        }
         console.error("Erro ao atualizar post:", error);
         return res.status(500).json({ message: "Erro interno no servidor ao atualizar o post." });
     }
